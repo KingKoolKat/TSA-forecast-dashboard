@@ -10,9 +10,9 @@ st.set_page_config(page_title="TSA Forecast Dashboard", layout="wide")
 st.title("✈️ TSA Passenger Forecast Dashboard")
 
 # === LOAD DATA ===
-df = pd.read_csv("../data/tsa_daily_full.csv", parse_dates=['date'])
+df = pd.read_csv("data/tsa_daily_full.csv", parse_dates=['date'])
 df = df[df['date'] >= '2023-01-01']
-forecast = pd.read_csv("../data/tsa_forecast.csv", parse_dates=['ds'])
+forecast = pd.read_csv("data/tsa_forecast.csv", parse_dates=['ds'])
 
 # === MERGE ACTUALS & PREDICTIONS ===
 pred_df = forecast.rename(columns={'ds': 'date'})
