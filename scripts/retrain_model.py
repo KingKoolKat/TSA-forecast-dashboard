@@ -5,9 +5,9 @@ from prophet import Prophet
 from datetime import datetime, timedelta
 import os
 
-DATA_PATH = "../data/tsa_daily_full.csv"
-FORECAST_PATH = "../data/tsa_forecast.csv"
-WEEKLY_HISTORY_PATH = "../data/weekly_forecast_history.csv"
+DATA_PATH = "data/tsa_daily_full.csv"
+FORECAST_PATH = "data/tsa_forecast.csv"
+WEEKLY_HISTORY_PATH = "data/weekly_forecast_history.csv"
 
 # === LOAD DATA ===
 df = pd.read_csv(DATA_PATH, parse_dates=['date'])
