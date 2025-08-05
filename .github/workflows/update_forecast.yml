@@ -1,0 +1,41 @@
+name: Update TSA Data & Forecast
+
+on:
+  schedule:
+    - cron: '0 18 * * *'     # Runs daily at 12:00 CST for data update
+    - cron: '5 18 * * 1'     # Runs Mondays at 12:05 CST for retraining
+  workflow_dispatch:         # Allows manual triggering in GitHub
+
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Clone repo
+        uses: actions/checkout@v3
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🗓️ Update TSA data
+        run: python scripts/update_data.py
+
+      - name: 🔮 Retrain model (only Sundays)
+        if: github.event.schedule == '0 13 * * 0'
+        run: python scripts/retrain_model.py
+
+      - name: 📤 Commit & Push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/*.csv
+          git commit -m "📈 Auto update: TSA data and forecast"
+          git push
