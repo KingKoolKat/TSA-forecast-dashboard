@@ -38,24 +38,46 @@ if view == "Daily":
 
 elif view == "Weekly Averages":
     st.subheader("📊 Weekly Averages: Forecast vs Actual")
-    merged["week"] = merged["ds"].dt.to_period("W").apply(lambda r: r.start_time)
-    weekly = merged.groupby("week").agg(
-        predicted_avg=("yhat", "mean"),
-        actual_avg=("throughput", "mean")
+    # Add 'week' column to merged data
+    merged['week'] = merged['ds'].dt.to_period("W").apply(lambda r: r.start_time)
+
+    # Identify current week
+    today = datetime.now().date()
+    current_week = today - pd.Timedelta(days=today.weekday())
+
+    # Aggregate weekly averages
+    weekly = merged.groupby('week').agg(
+        predicted_avg=('yhat', 'mean'),
+        actual_avg=('throughput', 'mean'),
+        percent_error=('percent_error', 'mean')
     ).reset_index()
 
-    fig = px.bar(weekly, x="week", y=["predicted_avg", "actual_avg"],
-                 barmode="group",
-                 labels={"value": "Passengers", "variable": "Legend"},
-                 title="Weekly Average TSA Throughput: Forecast vs Actual")
+    # Mark current week
+    weekly['is_current_week'] = weekly['week'] == pd.Timestamp(current_week)
+
+    # Add display label
+    weekly['label'] = weekly.apply(
+        lambda row: f"{row['week'].strftime('%b %d')} (current)" if row['is_current_week'] 
+                    else row['week'].strftime('%b %d'),
+        axis=1
+    )
+
+    # Filter out current week for accuracy stats
+    completed_weeks = weekly[~weekly['is_current_week']]
+    average_accuracy = 100 - completed_weeks['percent_error'].mean()
+
+    # Plot weekly bars
+    fig = px.bar(weekly, x='label', y=['predicted_avg', 'actual_avg'],
+                barmode='group',
+                labels={'value': 'Passengers', 'variable': 'Legend'},
+                title="Weekly Average TSA Throughput")
+
+    st.subheader("📊 Weekly Averages: Actual vs Predicted")
     st.plotly_chart(fig, use_container_width=True)
 
-    # Accuracy metrics (weekly)
-    weekly["absolute_error"] = (weekly["predicted_avg"] - weekly["actual_avg"]).abs()
-    weekly["percent_error"] = (weekly["absolute_error"] / weekly["actual_avg"]) * 100
-    st.markdown("### 📏 Accuracy (Weekly Averages)")
-    st.write(f"**MAE:** {weekly['absolute_error'].mean():,.0f} passengers")
-    st.write(f"**MAPE:** {weekly['percent_error'].mean():.2f}%")
+    # Show accuracy
+    st.markdown(f"**✅ Model Accuracy on Completed Weeks:** {average_accuracy:.2f}%")
+
 
 # === CURRENT WEEK FORECAST (from committed forecast) ===
 today = datetime.now()
