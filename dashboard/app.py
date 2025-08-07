@@ -72,7 +72,7 @@ elif view == "Weekly Averages":
                 labels={'value': 'Passengers', 'variable': 'Legend'},
                 title="Weekly Average TSA Throughput")
 
-    st.subheader("📊 Weekly Averages: Actual vs Predicted")
+    
     st.plotly_chart(fig, use_container_width=True)
 
     # Show accuracy
