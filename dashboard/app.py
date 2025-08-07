@@ -80,19 +80,37 @@ elif view == "Weekly Averages":
 
 
 # === CURRENT WEEK FORECAST (from committed forecast) ===
-today = datetime.now()
-start_of_week = today - pd.Timedelta(days=today.weekday())
-end_of_week = start_of_week + pd.Timedelta(days=6)
+now = pd.Timestamp.now()
+monday = (now.normalize() - pd.to_timedelta(now.weekday(), unit="D"))  # start of this week at 00:00
+sunday = monday + pd.Timedelta(days=6)
 
-current_week_prediction = history[
-    (history["ds"] >= start_of_week) &
-    (history["ds"] <= end_of_week) &
-    (history["date_made"] == start_of_week)
-]
+# Make sure the history columns are timestamps at midnight
+history['ds'] = pd.to_datetime(history['ds']).dt.normalize()
+history['date_made'] = pd.to_datetime(history['date_made']).dt.normalize()
+
+mask = (
+    (history['ds'] >= monday) &
+    (history['ds'] <= sunday) &
+    (history['date_made'] == monday)
+)
+
+current_week_prediction = history.loc[mask]
+
+st.markdown("---")
+st.subheader("📅 This Week's Forecast (As Predicted Monday)")
 
 if not current_week_prediction.empty:
-    current_week_avg = current_week_prediction["yhat"].mean()
-    label = f"{start_of_week.strftime('%b %d')} – {end_of_week.strftime('%b %d')}"
-    st.markdown("---")
-    st.subheader("📅 This Week's Forecast (As Predicted Monday)")
+    current_week_avg = current_week_prediction['yhat'].mean()
+    label = f"{monday.strftime('%b %d')} – {sunday.strftime('%b %d')}"
     st.metric(f"{label} Avg Forecast", f"{current_week_avg:,.0f} passengers")
+else:
+    # Debug helpers so you can see what the app thinks is available
+    st.warning(
+        "No forecast found for this week in the historical record. "
+        "Check that `weekly_forecast_history.csv` has rows with "
+        f"`date_made == {monday.date()}` and 7 entries where `ds` is between "
+        f"{monday.date()} and {sunday.date()}."
+    )
+    with st.expander("Debug info"):
+        st.write("Unique `date_made` values in history:", history['date_made'].dropna().unique())
+        st.write("Most recent rows:", history.sort_values(['date_made','ds']).tail(10))
