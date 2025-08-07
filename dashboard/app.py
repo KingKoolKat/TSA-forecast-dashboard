@@ -11,9 +11,8 @@ st.title("✈️ TSA Passenger Forecast Dashboard")
 df = pd.read_csv("data/tsa_daily_full.csv", parse_dates=["date"])
 df = df[df["date"] >= "2023-01-01"]
 
-history = pd.read_csv("data/weekly_forecast_history.csv", parse_dates=["forecast_made_for", "date"])
-history = history.rename(columns={"date": "ds"})  # Align with Prophet naming
-history = history.sort_values("forecast_made_for")
+history = pd.read_csv("data/weekly_forecast_history.csv", parse_dates=["date_made", "ds"])
+history = history.sort_values("date_made")
 
 # Merge actuals to historical forecasts
 merged = history.merge(df.rename(columns={"date": "ds"}), on="ds", how="left")
@@ -66,7 +65,7 @@ end_of_week = start_of_week + pd.Timedelta(days=6)
 current_week_prediction = history[
     (history["ds"] >= start_of_week) &
     (history["ds"] <= end_of_week) &
-    (history["forecast_made_for"] == start_of_week)
+    (history["date_made"] == start_of_week)
 ]
 
 if not current_week_prediction.empty:

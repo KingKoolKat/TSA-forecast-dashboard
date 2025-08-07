@@ -43,9 +43,14 @@ if today.weekday() == 0:  # Monday = 0
 
     if os.path.exists(WEEKLY_HISTORY_PATH):
         history_df = pd.read_csv(WEEKLY_HISTORY_PATH, parse_dates=['ds', 'date_made'])
-        updated_df = pd.concat([history_df, forecast_week[['ds', 'yhat', 'date_made']]], ignore_index=True)
+        updated_df = pd.concat(
+            [history_df, forecast_week[['ds', 'yhat', 'yhat_lower', 'yhat_upper', 'date_made']]],
+            ignore_index=True
+        )
+
     else:
-        updated_df = forecast_week[['ds', 'yhat', 'date_made']]
+        updated_df = forecast_week[['ds', 'yhat', 'yhat_lower', 'yhat_upper', 'date_made']]
+
 
     updated_df.to_csv(WEEKLY_HISTORY_PATH, index=False)
     print(f"🗂️ Weekly forecast logged to {WEEKLY_HISTORY_PATH} ({len(forecast_week)} rows)")
