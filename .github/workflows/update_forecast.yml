@@ -37,10 +37,19 @@ jobs:
         if: github.event.schedule == '5 18 * * 1' 
         run: python scripts/retrain_model.py
 
-      - name: 📤 Commit & Push
+      - name: 📤 Commit & Push (with rebase)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/*.csv
-          git commit -m "📈 Auto update: TSA data and forecast"
-          git push
+
+          # 1) Rebase onto the latest remote main BEFORE committing
+          git fetch origin ${{ github.ref_name }}
+          git pull --rebase origin ${{ github.ref_name }} || true
+
+          # 2) Stage and commit changes
+          git add data/*.csv || true
+          git commit -m "📈 Auto update: TSA data and forecast" || echo "No changes"
+
+          # 3) Push back to the same branch
+          git push origin HEAD:${{ github.ref_name }}
+
