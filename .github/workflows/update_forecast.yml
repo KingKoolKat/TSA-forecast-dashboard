@@ -1,5 +1,10 @@
 name: Update TSA Data & Forecast
 
+permissions:
+  contents: write
+  pull-requests: write  
+
+
 on:
   schedule:
     - cron: '0 18 * * *'     # Runs daily at 12:00 CST for data update
