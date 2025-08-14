@@ -116,7 +116,7 @@ else:
         st.write("Most recent rows:", history.sort_values(['date_made','ds']).tail(10))
 
 # === NEW: Kalshi Picks Section ===
-from kalshi_fetch import evaluate_above_lines, week_monday_from_now
+from scripts.kalshi_fetch import evaluate_above_lines, week_monday_from_now
 
 st.markdown("---")
 st.subheader("📈 Kalshi Picks — Expected Value (ABOVE X)")
