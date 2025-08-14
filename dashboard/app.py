@@ -114,3 +114,37 @@ else:
     with st.expander("Debug info"):
         st.write("Unique `date_made` values in history:", history['date_made'].dropna().unique())
         st.write("Most recent rows:", history.sort_values(['date_made','ds']).tail(10))
+
+# === NEW: Kalshi Picks Section ===
+from kalshi_fetch import evaluate_above_lines, week_monday_from_now
+
+st.markdown("---")
+st.subheader("📈 Kalshi Picks — Expected Value (ABOVE X)")
+
+# Controls
+week_monday = week_monday_from_now()
+fee = st.number_input("Fee per share (USD)", value=0.00, step=0.01, key="kalshi_fee")
+safety = st.slider("Uncertainty multiplier (conservative)", 1.0, 1.5, 1.10, 0.01, key="kalshi_safety")
+st.caption(f"Using committed forecast made on Monday {week_monday.date()}.")
+
+try:
+    ev_table = evaluate_above_lines(
+        history_csv="data/weekly_forecast_history.csv",
+        week_monday=week_monday,
+        fee_per_share=fee,
+        safety_scale=safety,
+    )
+    if ev_table.empty:
+        st.warning("No TSA markets found (or no prices). Try again later.")
+    else:
+        st.dataframe(
+            ev_table[[
+                "label", "ticker", "threshold",
+                "yes_price", "no_price",
+                "p_above_model", "EV_yes_$", "EV_no_$",
+                "best_action", "best_EV_$"
+            ]].round(4)
+        )
+        st.caption("Prices are approximate (derived from top-of-book bids). EV excludes slippage unless you include a fee.")
+except Exception as e:
+    st.error(f"Could not compute EVs: {e}")
