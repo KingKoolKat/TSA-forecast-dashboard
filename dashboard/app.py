@@ -115,18 +115,17 @@ elif view == "Weekly Averages":
     # Show accuracy
     st.markdown(f"**✅ Model Accuracy on Completed Weeks:** {average_accuracy:.2f}%")
 
-st.title("🔌 Kalshi Endpoint Test")
-
-import requests
 import streamlit as st
+import requests
 
-st.title("📊 Kalshi Markets (public)")
+st.title("TSA Forecast Series Raw Data Fetch")
 
-# Example: NYC high temp series from the docs
-markets_url = "https://api.elections.kalshi.com/trade-api/v2/markets?series_ticker=KXHIGHNY&status=open"
-r = requests.get(markets_url)
+series_ticker = "TSAW"  # or "TSAW"
+url = f"https://api.elections.kalshi.com/trade-api/v2/markets?series_ticker={series_ticker}"
+
+r = requests.get(url)
 r.raise_for_status()
 data = r.json()
 
-st.success(f"✅ Got {len(data.get('markets', []))} markets")
-st.json(data.get("markets", [])[:3])  # show first 3
+st.success("Fetched TSA forecast series data")
+st.json(data)
