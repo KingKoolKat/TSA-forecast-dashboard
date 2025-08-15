@@ -120,7 +120,7 @@ import requests
 
 st.title("TSA Forecast Series Raw Data Fetch")
 
-series_ticker = "TSAW"  # or "TSAW"
+series_ticker = "KXTSAW"  # or "TSAW"
 url = f"https://api.elections.kalshi.com/trade-api/v2/markets?series_ticker={series_ticker}"
 
 r = requests.get(url)
