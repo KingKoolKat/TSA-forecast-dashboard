@@ -117,6 +117,10 @@ elif view == "Weekly Averages":
 
 st.title("🔌 Kalshi Endpoint Test")
 
+import requests
+import streamlit as st
+
+
 # Example: Kalshi markets list endpoint
 url = "https://trading-api.kalshi.com/v1/markets"
 
