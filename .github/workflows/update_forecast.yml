@@ -5,8 +5,8 @@ permissions:
 
 on:
   schedule:
-    - cron: '0 18 * * *'   # daily @ 12:00 PM CST
-    - cron: '5 18 * * 1'   # Mondays @ 12:05 PM CST (retrain)
+    - cron: '0 15 * * *'   # daily 
+    - cron: '5 15 * * 1'   # Mondays 
   workflow_dispatch:
 
 jobs:
@@ -33,7 +33,7 @@ jobs:
         run: python scripts/update_data.py
 
       - name: Retrain (Mondays only)
-        if: github.event.schedule == '5 18 * * 1'
+        if: github.event.schedule == '5 15 * * 1'
         run: python scripts/retrain_model.py
 
       - name: Configure git
