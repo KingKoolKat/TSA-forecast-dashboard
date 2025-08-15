@@ -120,20 +120,13 @@ st.title("🔌 Kalshi Endpoint Test")
 import requests
 import streamlit as st
 
+st.title("📊 Kalshi Markets (public)")
 
-# Example: Kalshi markets list endpoint
-url = "https://trading-api.kalshi.com/v1/markets"
+# Example: NYC high temp series from the docs
+markets_url = "https://api.elections.kalshi.com/trade-api/v2/markets?series_ticker=KXHIGHNY&status=open"
+r = requests.get(markets_url)
+r.raise_for_status()
+data = r.json()
 
-try:
-    response = requests.get(url)
-    response.raise_for_status()  # Throw error if not 200 OK
-    data = response.json()
-
-    st.success("✅ Kalshi endpoint responded successfully!")
-    st.write(f"Returned {len(data.get('markets', []))} markets")
-    st.json(data.get("markets", [])[:3])  # Show first 3 markets only
-
-except Exception as e:
-    st.error(f"❌ Error hitting Kalshi endpoint: {e}")
-
-
+st.success(f"✅ Got {len(data.get('markets', []))} markets")
+st.json(data.get("markets", [])[:3])  # show first 3
