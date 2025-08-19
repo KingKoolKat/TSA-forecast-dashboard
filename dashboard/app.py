@@ -184,7 +184,7 @@ def get_week_slice(df_daily: pd.DataFrame, week_end: dt.date):
 # 📊 TSA Forecast Probabilities (Prophet-based)
 # ===============================
 
-st.subheader("📊 TSA Forecast Probabilities (Prophet → weekly average)")
+st.subheader("📊 TSA Forecast Probabilities EVS")
 
 # You likely already have this in memory; adjust the variable name if needed.
 # Expected columns: ['ds', 'yhat', 'yhat_lower', 'yhat_upper'] with daily rows.
@@ -249,8 +249,31 @@ try:
                     "Prophet P(avg>strike)": None,
                     "Error": str(e)[:120]
                 })
+        df_out = pd.DataFrame(rows)
 
         st.dataframe(pd.DataFrame(rows).sort_values(["Week Ending","Strike"]))
 except Exception as e:
     st.error(f"Failed to fetch TSA markets or compute probabilities: {e}")
 
+if not df_out.empty:
+    df_out = df_out.sort_values(["Strike"])
+    st.dataframe(df_out, use_container_width=True)  # optional: keep the plain table too
+
+    # --- Highlight the single overall best EV cell ---
+    import pandas as pd
+    ev_cols = ["EV Yes @ Ask (¢)", "EV No @ Ask (¢)"]
+
+    # Safely compute the overall max location across EV columns
+    ev_sub = df_out[ev_cols].apply(pd.to_numeric, errors="coerce")
+    # If everything is NaN, skip styling
+    if ev_sub.notna().any().any():
+        # Get the FIRST occurrence of the global max (row label, column name)
+        best_row_label, best_col_name = ev_sub.stack().idxmax()
+
+        def highlight_overall(df: pd.DataFrame):
+            styles = pd.DataFrame('', index=df.index, columns=df.columns)
+            styles.loc[best_row_label, best_col_name] = 'background-color: lightgreen; font-weight: 600'
+            return styles
+
+        styled = df_out.style.apply(highlight_overall, axis=None)
+        st.dataframe(styled, use_container_width=True)
