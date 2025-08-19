@@ -118,14 +118,24 @@ elif view == "Weekly Averages":
 import streamlit as st
 import requests
 
-st.title("TSA Forecast Series Raw Data Fetch")
+import streamlit as st
+import requests
 
-series_ticker = "KXTSAW"  # or "TSAW"
+st.title("📊 TSA Forecast Prices")
+
+series_ticker = "KXTSAW"
 url = f"https://api.elections.kalshi.com/trade-api/v2/markets?series_ticker={series_ticker}"
 
 r = requests.get(url)
 r.raise_for_status()
 data = r.json()
 
-st.success("Fetched TSA forecast series data")
-st.json(data)
+markets = data.get("markets", [])
+
+for m in markets:
+    st.write(f"**Strike {m['floor_strike']:,}**")
+    st.write(f"Yes bid: {m['yes_bid']}¢ | Yes ask: {m['yes_ask']}¢")
+    st.write(f"No bid: {m['no_bid']}¢ | No ask: {m['no_ask']}¢")
+    st.write(f"Last trade: {m['last_price']}¢")
+    st.markdown("---")
+
