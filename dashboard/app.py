@@ -205,6 +205,8 @@ try:
         st.info("No active TSA markets returned.")
     else:
         # Show a compact table of strike + Prophet probability
+        cur_week_end = current_week_end_central()
+
         rows = []
         for m in markets:
             try:
