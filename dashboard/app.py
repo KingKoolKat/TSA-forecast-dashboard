@@ -209,8 +209,8 @@ try:
         for m in markets:
             try:
                 week_end = week_end_date_from_event_ticker(m["event_ticker"])
-                    if week_end != cur_week_end:
-                        continue  # only show current week markets
+                if week_end != cur_week_end:
+                    continue  # only show current week markets
         
                 yhat, yl, yu = get_week_slice(df_daily, week_end)
                 p = prob_weekly_avg_above_threshold(yhat, yl, yu, m["floor_strike"])
