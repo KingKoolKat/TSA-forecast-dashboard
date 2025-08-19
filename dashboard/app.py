@@ -179,53 +179,53 @@ def get_week_slice(df_daily: pd.DataFrame, week_end: dt.date):
 
 st.subheader("📊 TSA Forecast Probabilities (Prophet → weekly average)")
 
-# Expected columns: ['ds', 'yhat', 'yhat_lower', 'yhat_upper'] with daily rows.               "is loaded with columns ['ds','yhat','yhat_lower','yhat_upper'].")
-else:
-    df_daily = df.copy()
-    # Ensure correct dtypes
-    df_daily['ds'] = pd.to_datetime(df_daily['ds'], errors='coerce')
-    for col in ['yhat','yhat_lower','yhat_upper']:
-        df_daily[col] = pd.to_numeric(df_daily[col], errors='coerce')
+# You likely already have this in memory; adjust the variable name if needed.
+# Expected columns: ['ds', 'yhat', 'yhat_lower', 'yhat_upper'] with daily rows.
+df_daily = tsa_daily_full.copy()
+# Ensure correct dtypes
+df_daily['ds'] = pd.to_datetime(df_daily['ds'], errors='coerce')
+for col in ['yhat','yhat_lower','yhat_upper']:
+df_daily[col] = pd.to_numeric(df_daily[col], errors='coerce')
 
-    # Fetch active TSA markets for the series (public; no auth)
-    try:
-        series_ticker = "KXTSAW"  # TSA weekly average series
-        url = f"https://api.elections.kalshi.com/trade-api/v2/markets?series_ticker={series_ticker}&status=active"
-        r = requests.get(url, timeout=10)
-        r.raise_for_status()
-        markets = r.json().get("markets", [])
-        if not markets:
-            st.info("No active TSA markets returned.")
-        else:
-            # Show a compact table of strike + Prophet probability
-            rows = []
-            for m in markets:
-                try:
-                    week_end = week_end_date_from_event_ticker(m["event_ticker"])
-                    yhat, yl, yu = get_week_slice(df_daily, week_end)
-                    p = prob_weekly_avg_above_threshold(yhat, yl, yu, m["floor_strike"])
-                    rows.append({
-                        "Market": m.get("ticker", ""),
-                        "Week Ending": week_end.isoformat(),
-                        "Strike": int(m["floor_strike"]),
-                        "Prophet P(avg>strike)": round(p, 4),
-                        # Optional: include quotes for context (in cents)
-                        "Yes Bid": m.get("yes_bid"),
-                        "Yes Ask": m.get("yes_ask"),
-                        "No Bid": m.get("no_bid"),
-                        "No Ask": m.get("no_ask"),
-                    })
-                except Exception as e:
-                    # If any single market can't be aligned, skip and continue
-                    rows.append({
-                        "Market": m.get("ticker", ""),
-                        "Week Ending": "(unmatched)",
-                        "Strike": m.get("floor_strike"),
-                        "Prophet P(avg>strike)": None,
-                        "Error": str(e)[:120]
-                    })
+# Fetch active TSA markets for the series (public; no auth)
+try:
+    series_ticker = "KXTSAW"  # TSA weekly average series
+    url = f"https://api.elections.kalshi.com/trade-api/v2/markets?series_ticker={series_ticker}&status=active"
+    r = requests.get(url, timeout=10)
+    r.raise_for_status()
+    markets = r.json().get("markets", [])
+    if not markets:
+        st.info("No active TSA markets returned.")
+    else:
+        # Show a compact table of strike + Prophet probability
+        rows = []
+        for m in markets:
+            try:
+                week_end = week_end_date_from_event_ticker(m["event_ticker"])
+                yhat, yl, yu = get_week_slice(df_daily, week_end)
+                p = prob_weekly_avg_above_threshold(yhat, yl, yu, m["floor_strike"])
+                rows.append({
+                    "Market": m.get("ticker", ""),
+                    "Week Ending": week_end.isoformat(),
+                    "Strike": int(m["floor_strike"]),
+                    "Prophet P(avg>strike)": round(p, 4),
+                    # Optional: include quotes for context (in cents)
+                    "Yes Bid": m.get("yes_bid"),
+                    "Yes Ask": m.get("yes_ask"),
+                    "No Bid": m.get("no_bid"),
+                    "No Ask": m.get("no_ask"),
+                })
+            except Exception as e:
+                # If any single market can't be aligned, skip and continue
+                rows.append({
+                    "Market": m.get("ticker", ""),
+                    "Week Ending": "(unmatched)",
+                    "Strike": m.get("floor_strike"),
+                    "Prophet P(avg>strike)": None,
+                    "Error": str(e)[:120]
+                })
 
-            st.dataframe(pd.DataFrame(rows).sort_values(["Week Ending","Strike"]))
-    except Exception as e:
-        st.error(f"Failed to fetch TSA markets or compute probabilities: {e}")
+        st.dataframe(pd.DataFrame(rows).sort_values(["Week Ending","Strike"]))
+except Exception as e:
+    st.error(f"Failed to fetch TSA markets or compute probabilities: {e}")
 
