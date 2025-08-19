@@ -156,6 +156,13 @@ def week_end_date_from_event_ticker(event_ticker: str) -> dt.date:
     month = _MONTHS[mon_txt]
     return dt.date(year, month, dd)
 
+def current_week_end_central() -> dt.date:
+    # Use America/Chicago “today” to compute the upcoming Sunday
+    today_cdt = pd.Timestamp("now", tz="America/Chicago").date()
+    days_until_sun = (6 - today_cdt.weekday()) % 7
+    return today_cdt + dt.timedelta(days=days_until_sun)
+
+
 # --- Helper: get the 7 days ending on week_end (inclusive) from your forecast DF ---
 def get_week_slice(df_daily: pd.DataFrame, week_end: dt.date):
     """
@@ -202,8 +209,19 @@ try:
         for m in markets:
             try:
                 week_end = week_end_date_from_event_ticker(m["event_ticker"])
+                    if week_end != cur_week_end:
+                        continue  # only show current week markets
+        
                 yhat, yl, yu = get_week_slice(df_daily, week_end)
                 p = prob_weekly_avg_above_threshold(yhat, yl, yu, m["floor_strike"])
+
+                yes_ask = m.get("yes_ask")
+                no_ask  = m.get("no_ask")
+
+                ev_yes_cents = None if yes_ask is None else (100.0 * p - float(yes_ask))
+                ev_no_cents  = None if no_ask  is None else (100.0 * (1.0 - p) - float(no_ask))
+
+
                 rows.append({
                     "Market": m.get("ticker", ""),
                     "Week Ending": week_end.isoformat(),
@@ -214,6 +232,11 @@ try:
                     "Yes Ask": m.get("yes_ask"),
                     "No Bid": m.get("no_bid"),
                     "No Ask": m.get("no_ask"),
+                    "EV Yes @ Ask (¢)": round(ev_yes_cents, 2),
+                    "EV No @ Ask (¢)": round(ev_no_cents, 2),
+                    "EV Yes @ Ask ($)": round(ev_yes_cents / 100.0, 4),
+                    "EV No @ Ask ($)": round(ev_no_cents  / 100.0, 4),
+
                 })
             except Exception as e:
                 # If any single market can't be aligned, skip and continue
