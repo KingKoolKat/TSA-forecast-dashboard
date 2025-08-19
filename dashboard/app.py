@@ -181,9 +181,9 @@ st.subheader("📊 TSA Forecast Probabilities (Prophet → weekly average)")
 
 # You likely already have this in memory; adjust the variable name if needed.
 # Expected columns: ['ds', 'yhat', 'yhat_lower', 'yhat_upper'] with daily rows.
-df_daily = df.copy()
+df_daily = history.copy()
 # Ensure correct dtypes
-df_daily['date'] = pd.to_datetime(df_daily['date'], errors='coerce')
+df_daily['ds'] = pd.to_datetime(df_daily['ds'], errors='coerce')
 for col in ['yhat','yhat_lower','yhat_upper']:
     df_daily[col] = pd.to_numeric(df_daily[col], errors='coerce')
 
