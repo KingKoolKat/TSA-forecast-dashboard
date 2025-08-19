@@ -185,7 +185,7 @@ df_daily = tsa_daily_full.copy()
 # Ensure correct dtypes
 df_daily['ds'] = pd.to_datetime(df_daily['ds'], errors='coerce')
 for col in ['yhat','yhat_lower','yhat_upper']:
-df_daily[col] = pd.to_numeric(df_daily[col], errors='coerce')
+    df_daily[col] = pd.to_numeric(df_daily[col], errors='coerce')
 
 # Fetch active TSA markets for the series (public; no auth)
 try:
