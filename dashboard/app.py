@@ -183,7 +183,7 @@ st.subheader("📊 TSA Forecast Probabilities (Prophet → weekly average)")
 # Expected columns: ['ds', 'yhat', 'yhat_lower', 'yhat_upper'] with daily rows.
 df_daily = df.copy()
 # Ensure correct dtypes
-df_daily['ds'] = pd.to_datetime(df_daily['ds'], errors='coerce')
+df_daily['date'] = pd.to_datetime(df_daily['date'], errors='coerce')
 for col in ['yhat','yhat_lower','yhat_upper']:
     df_daily[col] = pd.to_numeric(df_daily[col], errors='coerce')
 
