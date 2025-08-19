@@ -190,7 +190,7 @@ for col in ['yhat','yhat_lower','yhat_upper']:
 # Fetch active TSA markets for the series (public; no auth)
 try:
     series_ticker = "KXTSAW"  # TSA weekly average series
-    url = f"https://api.elections.kalshi.com/trade-api/v2/markets?series_ticker={series_ticker}&status=active"
+    url = f"https://api.elections.kalshi.com/trade-api/v2/markets?series_ticker={series_ticker}"
     r = requests.get(url, timeout=10)
     r.raise_for_status()
     markets = r.json().get("markets", [])
