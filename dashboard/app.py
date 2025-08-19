@@ -181,39 +181,42 @@ def get_week_slice(df_daily: pd.DataFrame, week_end: dt.date):
     return wk["yhat"].tolist(), wk["yhat_lower"].tolist(), wk["yhat_upper"].tolist()
 
 # ===============================
-# 📊 TSA Forecast Probabilities (Prophet-based)
+# 📊 TSA Forecast Probabilities + EV (current week only, single styled table)
 # ===============================
 
-st.subheader("📊 TSA Forecast Probabilities EVS")
+st.subheader("📊 TSA Forecast — Current Week (Probabilities & EV)")
 
-# You likely already have this in memory; adjust the variable name if needed.
-# Expected columns: ['ds', 'yhat', 'yhat_lower', 'yhat_upper'] with daily rows.
+def _safe_round(x, nd=2):
+    try:
+        return round(float(x), nd)
+    except Exception:
+        return None
+
+# Use your historical forecast DF for yhat/yhat_lower/yhat_upper
 df_daily = history.copy()
-# Ensure correct dtypes
 df_daily['ds'] = pd.to_datetime(df_daily['ds'], errors='coerce')
-for col in ['yhat','yhat_lower','yhat_upper']:
+for col in ['yhat', 'yhat_lower', 'yhat_upper']:
     df_daily[col] = pd.to_numeric(df_daily[col], errors='coerce')
 
-# Fetch active TSA markets for the series (public; no auth)
 try:
-    series_ticker = "KXTSAW"  # TSA weekly average series
+    series_ticker = "KXTSAW"
     url = f"https://api.elections.kalshi.com/trade-api/v2/markets?series_ticker={series_ticker}"
     r = requests.get(url, timeout=10)
     r.raise_for_status()
     markets = r.json().get("markets", [])
+
     if not markets:
         st.info("No active TSA markets returned.")
     else:
-        # Show a compact table of strike + Prophet probability
         cur_week_end = current_week_end_central()
-
         rows = []
+
         for m in markets:
             try:
                 week_end = week_end_date_from_event_ticker(m["event_ticker"])
                 if week_end != cur_week_end:
-                    continue  # only show current week markets
-        
+                    continue  # only current week
+
                 yhat, yl, yu = get_week_slice(df_daily, week_end)
                 p = prob_weekly_avg_above_threshold(yhat, yl, yu, m["floor_strike"])
 
@@ -223,57 +226,55 @@ try:
                 ev_yes_cents = None if yes_ask is None else (100.0 * p - float(yes_ask))
                 ev_no_cents  = None if no_ask  is None else (100.0 * (1.0 - p) - float(no_ask))
 
-
                 rows.append({
                     "Market": m.get("ticker", ""),
                     "Week Ending": week_end.isoformat(),
                     "Strike": int(m["floor_strike"]),
-                    "Prophet P(avg>strike)": round(p, 4),
-                    # Optional: include quotes for context (in cents)
-                    "Yes Bid": m.get("yes_bid"),
-                    "Yes Ask": m.get("yes_ask"),
-                    "No Bid": m.get("no_bid"),
-                    "No Ask": m.get("no_ask"),
-                    "EV Yes @ Ask (¢)": round(ev_yes_cents, 2),
-                    "EV No @ Ask (¢)": round(ev_no_cents, 2),
-                    "EV Yes @ Ask ($)": round(ev_yes_cents / 100.0, 4),
-                    "EV No @ Ask ($)": round(ev_no_cents  / 100.0, 4),
-
+                    "Prophet P(avg>strike)": _safe_round(p, 4),
+                    "Yes Bid (¢)": m.get("yes_bid"),
+                    "Yes Ask (¢)": yes_ask,
+                    "No Bid (¢)": m.get("no_bid"),
+                    "No Ask (¢)": no_ask,
+                    "EV Yes @ Ask (¢)": _safe_round(ev_yes_cents, 2),
+                    "EV No @ Ask (¢)": _safe_round(ev_no_cents, 2),
+                    "EV Yes @ Ask ($)": _safe_round(None if ev_yes_cents is None else ev_yes_cents / 100.0, 4),
+                    "EV No @ Ask ($)": _safe_round(None if ev_no_cents  is None else ev_no_cents  / 100.0, 4),
                 })
             except Exception as e:
-                # If any single market can't be aligned, skip and continue
                 rows.append({
                     "Market": m.get("ticker", ""),
                     "Week Ending": "(unmatched)",
                     "Strike": m.get("floor_strike"),
                     "Prophet P(avg>strike)": None,
-                    "Error": str(e)[:120]
+                    "Yes Bid (¢)": m.get("yes_bid"),
+                    "Yes Ask (¢)": m.get("yes_ask"),
+                    "No Bid (¢)": m.get("no_bid"),
+                    "No Ask (¢)": m.get("no_ask"),
+                    "EV Yes @ Ask (¢)": None,
+                    "EV No @ Ask (¢)": None,
+                    "EV Yes @ Ask ($)": None,
+                    "EV No @ Ask ($)": None,
+                    "Error": str(e)[:140],
                 })
-        df_out = pd.DataFrame(rows)
 
-        st.dataframe(pd.DataFrame(rows).sort_values(["Week Ending","Strike"]))
+        df_out = pd.DataFrame(rows).sort_values(["Strike"])
+
+        if df_out.empty:
+            st.info(f"No markets for current week ending {cur_week_end}.")
+        else:
+            # Highlight the single overall best EV across both EV columns
+            ev_cols = ["EV Yes @ Ask (¢)", "EV No @ Ask (¢)"]
+            ev_sub = df_out[ev_cols].apply(pd.to_numeric, errors="coerce")
+
+            def highlight_overall(df: pd.DataFrame):
+                styles = pd.DataFrame('', index=df.index, columns=df.columns)
+                if ev_sub.notna().any().any():
+                    best_row_label, best_col_name = ev_sub.stack().idxmax()
+                    styles.loc[best_row_label, best_col_name] = 'background-color: lightgreen; font-weight: 600'
+                return styles
+
+            styled = df_out.style.apply(highlight_overall, axis=None)
+            st.dataframe(styled, use_container_width=True)
+
 except Exception as e:
-    st.error(f"Failed to fetch TSA markets or compute probabilities: {e}")
-
-if not df_out.empty:
-    df_out = df_out.sort_values(["Strike"])
-    st.dataframe(df_out, use_container_width=True)  # optional: keep the plain table too
-
-    # --- Highlight the single overall best EV cell ---
-    import pandas as pd
-    ev_cols = ["EV Yes @ Ask (¢)", "EV No @ Ask (¢)"]
-
-    # Safely compute the overall max location across EV columns
-    ev_sub = df_out[ev_cols].apply(pd.to_numeric, errors="coerce")
-    # If everything is NaN, skip styling
-    if ev_sub.notna().any().any():
-        # Get the FIRST occurrence of the global max (row label, column name)
-        best_row_label, best_col_name = ev_sub.stack().idxmax()
-
-        def highlight_overall(df: pd.DataFrame):
-            styles = pd.DataFrame('', index=df.index, columns=df.columns)
-            styles.loc[best_row_label, best_col_name] = 'background-color: lightgreen; font-weight: 600'
-            return styles
-
-        styled = df_out.style.apply(highlight_overall, axis=None)
-        st.dataframe(styled, use_container_width=True)
+    st.error(f"Failed to fetch TSA markets or compute probabilities/EV: {e}")
