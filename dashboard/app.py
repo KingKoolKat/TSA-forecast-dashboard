@@ -67,9 +67,32 @@ yhat_daily = hist.loc[idx, ["ds","yhat"]].sort_values("ds")
 
 actuals = df.rename(columns={"date": "ds"})[["ds","throughput"]].sort_values("ds")
 
-merged_daily = actuals.merge(yhat_daily, on="ds", how="left")
-merged_daily["absolute_error"] = (merged_daily["yhat"] - merged_daily["throughput"]).abs()
-merged_daily["percent_error"]  = merged_daily["absolute_error"] / merged_daily["throughput"] * 100
+# --- Build complete date index from forecasts (keeps future dates) ---
+start_ds = yhat_daily["ds"].min()                      # or pd.Timestamp("2024-08-04")
+end_ds   = yhat_daily["ds"].max()                      # includes future ds from your latest run
+all_ds = pd.DataFrame({"ds": pd.date_range(start=start_ds, end=end_ds, freq="D")})
+
+# Optional: enforce start at Aug 4 specifically
+# all_ds = all_ds[all_ds["ds"] >= pd.Timestamp("2024-08-04")].reset_index(drop=True)
+
+# --- Merge both series onto the full index ---
+merged_daily = (
+    all_ds
+    .merge(actuals, on="ds", how="left")               # brings in 'throughput' (NaN for future)
+    .merge(yhat_daily, on="ds", how="left")            # brings in 'yhat' (has future predictions)
+    .sort_values("ds")
+)
+
+# --- Errors only where we have actuals ---
+mask_actual = merged_daily["throughput"].notna()
+merged_daily["absolute_error"] = np.where(
+    mask_actual, (merged_daily["yhat"] - merged_daily["throughput"]).abs(), np.nan
+)
+merged_daily["percent_error"] = np.where(
+    mask_actual,
+    merged_daily["absolute_error"] / merged_daily["throughput"] * 100,
+    np.nan
+)
 
 cutoff_date = pd.to_datetime("2025-08-04")   
 merged_daily = merged_daily[merged_daily["ds"] >= cutoff_date].copy()
@@ -103,10 +126,11 @@ elif view == "Weekly Averages":
     today = datetime.now().date()
     current_week = today - pd.Timedelta(days=today.weekday())
 
+    # Weekly aggregation (use merged_daily, which now includes future ds)
     weekly = merged_daily.groupby("week", as_index=False).agg(
         predicted_avg=("yhat", "mean"),
         actual_avg=("throughput", "mean"),
-        percent_error=("percent_error", "mean"),
+        percent_error=("percent_error", "mean"),   # NaN for weeks without actuals
     )
     weekly["is_current_week"] = weekly["week"] == pd.Timestamp(current_week)
     weekly["label"] = weekly.apply(
@@ -115,7 +139,7 @@ elif view == "Weekly Averages":
         axis=1
     )
 
-    completed_weeks = weekly[~weekly["is_current_week"]]
+    completed_weeks = weekly[weekly["actual_avg"].notna()]
     average_accuracy = 100 - completed_weeks["percent_error"].mean()
 
     fig = px.bar(
