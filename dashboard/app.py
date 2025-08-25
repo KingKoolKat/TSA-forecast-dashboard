@@ -58,63 +58,70 @@ else:
         st.write("Most recent rows:", history.sort_values(['date_made','ds']).tail(10))
 
 
+# === CLEAN ONE-FORECAST-PER-DAY SERIES ===
+# history: ["date_made","ds","yhat"] ; df: ["date","throughput"]
+hist = history.copy()
+hist = hist[hist["date_made"] <= hist["ds"]]                       # only forecasts made before the target day
+idx = hist.sort_values(["ds","date_made"]).groupby("ds")["date_made"].idxmax()
+yhat_daily = hist.loc[idx, ["ds","yhat"]].sort_values("ds")
+
+actuals = df.rename(columns={"date": "ds"})[["ds","throughput"]].sort_values("ds")
+
+merged_daily = actuals.merge(yhat_daily, on="ds", how="left")
+merged_daily["absolute_error"] = (merged_daily["yhat"] - merged_daily["throughput"]).abs()
+merged_daily["percent_error"]  = merged_daily["absolute_error"] / merged_daily["throughput"] * 100
+
 # === TOGGLE VIEW ===
 view = st.radio("Select View Mode", ["Daily", "Weekly Averages"])
 
 if view == "Daily":
     st.subheader("📈 Daily Forecasts vs Actuals (From Historical Model Runs)")
-    fig = px.line(merged, x="ds", y=["yhat", "throughput"],
-                  labels={"value": "Passengers", "variable": "Legend"},
+    # long-form for clean legend labels
+    plot_df = merged_daily.melt(id_vars="ds", value_vars=["yhat", "throughput"],
+                                var_name="series", value_name="value").sort_values("ds")
+    fig = px.line(plot_df, x="ds", y="value", color="series",
+                  labels={"value": "Passengers", "series": "Legend"},
                   title="Daily Forecast (Historical) vs Actuals")
     st.plotly_chart(fig, use_container_width=True)
 
-    # Optional: accuracy metrics
+    # Accuracy (all time)
     st.markdown("### 📏 Accuracy (All Time)")
-    avg_mae = merged["absolute_error"].mean()
-    avg_mape = merged["percent_error"].mean()
-    st.write(f"**MAE:** {avg_mae:,.0f} passengers")
-    st.write(f"**MAPE:** {avg_mape:.2f}%")
+    st.write(f"**MAE:** {merged_daily['absolute_error'].mean():,.0f} passengers")
+    st.write(f"**MAPE:** {merged_daily['percent_error'].mean():.2f}%")
 
 elif view == "Weekly Averages":
     st.subheader("📊 Weekly Averages: Forecast vs Actual")
-    # Add 'week' column to merged data
-    merged['week'] = merged['ds'].dt.to_period("W").apply(lambda r: r.start_time)
 
-    # Identify current week
+    # week start (Monday)
+    merged_daily["week"] = merged_daily["ds"].dt.to_period("W").apply(lambda r: r.start_time)
+
+    from datetime import datetime
     today = datetime.now().date()
     current_week = today - pd.Timedelta(days=today.weekday())
 
-    # Aggregate weekly averages
-    weekly = merged.groupby('week').agg(
-        predicted_avg=('yhat', 'mean'),
-        actual_avg=('throughput', 'mean'),
-        percent_error=('percent_error', 'mean')
-    ).reset_index()
-
-    # Mark current week
-    weekly['is_current_week'] = weekly['week'] == pd.Timestamp(current_week)
-
-    # Add display label
-    weekly['label'] = weekly.apply(
-        lambda row: f"{row['week'].strftime('%b %d')} (current)" if row['is_current_week'] 
-                    else row['week'].strftime('%b %d'),
+    weekly = merged_daily.groupby("week", as_index=False).agg(
+        predicted_avg=("yhat", "mean"),
+        actual_avg=("throughput", "mean"),
+        percent_error=("percent_error", "mean"),
+    )
+    weekly["is_current_week"] = weekly["week"] == pd.Timestamp(current_week)
+    weekly["label"] = weekly.apply(
+        lambda r: f"{r['week'].strftime('%b %d')} (current)" if r["is_current_week"]
+                  else r["week"].strftime('%b %d'),
         axis=1
     )
 
-    # Filter out current week for accuracy stats
-    completed_weeks = weekly[~weekly['is_current_week']]
-    average_accuracy = 100 - completed_weeks['percent_error'].mean()
+    completed_weeks = weekly[~weekly["is_current_week"]]
+    average_accuracy = 100 - completed_weeks["percent_error"].mean()
 
-    # Plot weekly bars
-    fig = px.bar(weekly, x='label', y=['predicted_avg', 'actual_avg'],
-                barmode='group',
-                labels={'value': 'Passengers', 'variable': 'Legend'},
-                title="Weekly Average TSA Throughput")
-
-    
+    fig = px.bar(
+        weekly, x="label", y=["predicted_avg", "actual_avg"],
+        barmode="group",
+        labels={"value": "Passengers", "variable": "Legend"},
+        title="Weekly Average TSA Throughput"
+    )
     st.plotly_chart(fig, use_container_width=True)
 
-    # Show accuracy
     st.markdown(f"**✅ Model Accuracy on Completed Weeks:** {average_accuracy:.2f}%")
 
 import math
