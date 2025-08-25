@@ -71,6 +71,10 @@ merged_daily = actuals.merge(yhat_daily, on="ds", how="left")
 merged_daily["absolute_error"] = (merged_daily["yhat"] - merged_daily["throughput"]).abs()
 merged_daily["percent_error"]  = merged_daily["absolute_error"] / merged_daily["throughput"] * 100
 
+cutoff_date = pd.to_datetime("2025-08-04")   
+merged_daily = merged_daily[merged_daily["ds"] >= cutoff_date].copy()
+
+
 # === TOGGLE VIEW ===
 view = st.radio("Select View Mode", ["Daily", "Weekly Averages"])
 
