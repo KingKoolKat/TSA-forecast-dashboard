@@ -87,16 +87,22 @@ if view == "Daily":
     ).sort_values("ds")
 
     line = (
-        alt.Chart(plot_df)
-        .mark_line(point=True)
-        .encode(
-            x=alt.X("ds:T", title="Date"),
-            y=alt.Y("value:Q", title="Passengers"),
-            color=alt.Color("series:N", title="Legend"),
-            tooltip=["ds:T", "series:N", alt.Tooltip("value:Q", format=",.0f")]
-        )
-        .properties(title="Daily Forecast (Historical) vs Actuals", height=350)
+    alt.Chart(plot_df)
+    .mark_line(point=True)
+    .encode(
+        x=alt.X("ds:T", title="Date"),
+        y=alt.Y("value:Q", title="Passengers"),
+        color=alt.Color("series:N", title="Legend"),
+        detail="series:N",             # ensure each series connects only within itself
+        order=alt.Order("ds:T"),       # connect points in ds order
+        tooltip=[
+            alt.Tooltip("ds:T", title="Date"),
+            alt.Tooltip("series:N", title="Series"),
+            alt.Tooltip("value:Q", format=",.0f", title="Passengers"),
+        ],
     )
+    .properties(title="Daily Forecast (Historical) vs Actuals", height=350)
+)
 
     st.altair_chart(line, use_container_width=True)
 
