@@ -17,8 +17,17 @@ df = df[df['date'] >= '2023-01-01']  # Optional: exclude COVID-era noise
 prophet_df = df.rename(columns={'date': 'ds', 'throughput': 'y'})
 
 # === TRAIN MODEL ===
-model = Prophet(daily_seasonality=True, yearly_seasonality=True)
-model.add_country_holidays(country_name='US')
+model = Prophet(
+    daily_seasonality=True,     # I adjusted these due to my tuning results
+    yearly_seasonality=True,
+    changepoint_prior_scale=0.5,
+    seasonality_mode="additive",
+    seasonality_prior_scale=1,
+    holidays_prior_scale=10,
+    changepoint_range=0.8,
+)
+
+model.add_country_holidays(country_name="US")
 model.fit(prophet_df)
 
 # === MAKE FUTURE FORECAST ===
