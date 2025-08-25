@@ -5,3 +5,5 @@ lxml==6.0.0
 prophet==1.1.7
 holidays==0.77
 plotly==6.2.0
+altair
+numpy
