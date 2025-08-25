@@ -75,7 +75,7 @@ merged_daily["absolute_error"] = (merged_daily["yhat"] - merged_daily["throughpu
 merged_daily["percent_error"]  = merged_daily["absolute_error"] / merged_daily["throughput"] * 100
 
 # === TOGGLE VIEW (Altair) ===
-view = st.radio("Select View Mode", ["Daily", "Weekly Averages"])
+view = st.radio("Selec View Mode", ["Daily", "Weekly Averages"])
 
 if view == "Daily":
     st.subheader("📈 Daily Forecasts vs Actuals (From Historical Model Runs)")
