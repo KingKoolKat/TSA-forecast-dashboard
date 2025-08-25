@@ -2,7 +2,7 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 from datetime import datetime
-
+import altair as alt
 
 
 # === CONFIG ===
@@ -59,40 +59,55 @@ else:
 
 
 # === CLEAN ONE-FORECAST-PER-DAY SERIES ===
-# history: ["date_made","ds","yhat"] ; df: ["date","throughput"]
-hist = history.copy()
-hist = hist[hist["date_made"] <= hist["ds"]]                       # only forecasts made before the target day
-idx = hist.sort_values(["ds","date_made"]).groupby("ds")["date_made"].idxmax()
-yhat_daily = hist.loc[idx, ["ds","yhat"]].sort_values("ds")
+# Assumes:
+#   history: ["date_made","ds","yhat"]  (already parsed as datetime)
+#   df:      ["date","throughput"]      (already parsed as datetime)
 
-actuals = df.rename(columns={"date": "ds"})[["ds","throughput"]].sort_values("ds")
+hist = history.copy()
+hist = hist[hist["date_made"] <= hist["ds"]]
+idx = hist.sort_values(["ds", "date_made"]).groupby("ds")["date_made"].idxmax()
+yhat_daily = hist.loc[idx, ["ds", "yhat"]].sort_values("ds")
+
+actuals = df.rename(columns={"date": "ds"})[["ds", "throughput"]].sort_values("ds")
 
 merged_daily = actuals.merge(yhat_daily, on="ds", how="left")
 merged_daily["absolute_error"] = (merged_daily["yhat"] - merged_daily["throughput"]).abs()
 merged_daily["percent_error"]  = merged_daily["absolute_error"] / merged_daily["throughput"] * 100
 
-# === TOGGLE VIEW ===
+# === TOGGLE VIEW (Altair) ===
 view = st.radio("Select View Mode", ["Daily", "Weekly Averages"])
 
 if view == "Daily":
     st.subheader("📈 Daily Forecasts vs Actuals (From Historical Model Runs)")
-    # long-form for clean legend labels
-    plot_df = merged_daily.melt(id_vars="ds", value_vars=["yhat", "throughput"],
-                                var_name="series", value_name="value").sort_values("ds")
-    fig = px.line(plot_df, x="ds", y="value", color="series",
-                  labels={"value": "Passengers", "series": "Legend"},
-                  title="Daily Forecast (Historical) vs Actuals")
-    st.plotly_chart(fig, use_container_width=True)
 
-    # Accuracy (all time)
+    # Long-form for Altair
+    plot_df = merged_daily.melt(
+        id_vars="ds", value_vars=["yhat", "throughput"],
+        var_name="series", value_name="value"
+    ).sort_values("ds")
+
+    line = (
+        alt.Chart(plot_df)
+        .mark_line(point=True)
+        .encode(
+            x=alt.X("ds:T", title="Date"),
+            y=alt.Y("value:Q", title="Passengers"),
+            color=alt.Color("series:N", title="Legend"),
+            tooltip=["ds:T", "series:N", alt.Tooltip("value:Q", format=",.0f")]
+        )
+        .properties(title="Daily Forecast (Historical) vs Actuals", height=350)
+    )
+
+    st.altair_chart(line, use_container_width=True)
+
     st.markdown("### 📏 Accuracy (All Time)")
     st.write(f"**MAE:** {merged_daily['absolute_error'].mean():,.0f} passengers")
     st.write(f"**MAPE:** {merged_daily['percent_error'].mean():.2f}%")
 
-elif view == "Weekly Averages":
+else:
     st.subheader("📊 Weekly Averages: Forecast vs Actual")
 
-    # week start (Monday)
+    # Monday week start
     merged_daily["week"] = merged_daily["ds"].dt.to_period("W").apply(lambda r: r.start_time)
 
     from datetime import datetime
@@ -114,14 +129,24 @@ elif view == "Weekly Averages":
     completed_weeks = weekly[~weekly["is_current_week"]]
     average_accuracy = 100 - completed_weeks["percent_error"].mean()
 
-    fig = px.bar(
-        weekly, x="label", y=["predicted_avg", "actual_avg"],
-        barmode="group",
-        labels={"value": "Passengers", "variable": "Legend"},
-        title="Weekly Average TSA Throughput"
+    wk_long = weekly.melt(
+        id_vars=["label"], value_vars=["predicted_avg", "actual_avg"],
+        var_name="series", value_name="value"
     )
-    st.plotly_chart(fig, use_container_width=True)
 
+    bars = (
+        alt.Chart(wk_long)
+        .mark_bar()
+        .encode(
+            x=alt.X("label:N", title="Week"),
+            y=alt.Y("value:Q", title="Passengers"),
+            color=alt.Color("series:N", title="Legend"),
+            tooltip=["label:N", "series:N", alt.Tooltip("value:Q", format=",.0f")]
+        )
+        .properties(title="Weekly Average TSA Throughput", height=350)
+    )
+
+    st.altair_chart(bars, use_container_width=True)
     st.markdown(f"**✅ Model Accuracy on Completed Weeks:** {average_accuracy:.2f}%")
 
 import math
