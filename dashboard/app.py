@@ -1,9 +1,11 @@
-import pandas as pd
-import streamlit as st
-import plotly.express as px
-from datetime import datetime
-import altair as alt
+import datetime as dt
+import math
+
 import numpy as np
+import pandas as pd
+import plotly.express as px
+import requests
+import streamlit as st
 
 
 # === CONFIG ===
@@ -123,8 +125,7 @@ elif view == "Weekly Averages":
     # week start (Monday)
     merged_daily["week"] = merged_daily["ds"].dt.to_period("W").apply(lambda r: r.start_time)
 
-    from datetime import datetime
-    today = datetime.now().date()
+    today = dt.datetime.now().date()
     current_week = today - pd.Timedelta(days=today.weekday())
 
     # Weekly aggregation (use merged_daily, which now includes future ds)
@@ -152,13 +153,6 @@ elif view == "Weekly Averages":
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown(f"**✅ Model Accuracy on Completed Weeks:** {average_accuracy:.2f}%")
-
-
-import math
-import datetime as dt
-import pandas as pd
-import requests
-import streamlit as st
 
 # --- Helper: from Prophet's 80% band to daily sigma, then weekly avg prob ---
 Z80 = 1.2815515655446004  # central 80% interval z-score (10th..90th)

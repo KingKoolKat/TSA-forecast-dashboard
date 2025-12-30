@@ -28,7 +28,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip uninstall -y numpy prophet cmdstanpy || true
-          pip install --no-cache-dir -r requirements.txt
+          pip install --no-cache-dir -r requirements-train.txt
 
       - name: Update TSA data
         run: python scripts/update_data.py
